@@ -1,4 +1,4 @@
-module findmdns
+module github.com/Buhrietoe/findmdns
 
 go 1.23.0
 
