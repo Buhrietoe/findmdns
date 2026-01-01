@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>findmdns - mDNS Device Discovery</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>findmdns</h1>
+        <p>mDNS Device Discovery Dashboard</p>
+    </header>
+
+    <main>
+        <div class="controls">
+            <button id="scanBtn">Scan for Devices</button>
+            <span id="lastScan"></span>
+        </div>
+
+        <div id="devicesTableContainer">
+            <div id="devicesTable">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Host</th>
+                            <th>Port</th>
+                            <th>Addresses</th>
+                            <th>Last Seen</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="devicesBody">
+                        <!-- Devices will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
