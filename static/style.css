@@ -97,8 +97,13 @@ table {
     border-radius: var(--border-radius);
     overflow: hidden;
     box-shadow: var(--box-shadow);
-    display: block;
     min-width: 700px; /* Ensure minimum width for readability */
+}
+
+td[colspan] {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
 }
 
 th, td {

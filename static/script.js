@@ -23,8 +23,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Scan button event listener
-    scanBtn.addEventListener('click', function() {
-        scanDevices();
+    scanBtn.addEventListener('click', async function() {
+        scanBtn.disabled = true;
+        const originalText = scanBtn.textContent;
+        scanBtn.textContent = 'Scanning...';
+        devicesBody.innerHTML = '<tr><td colspan="6">Scanning for devices...</td></tr>';
+        try {
+            await scanDevices();
+        } finally {
+            scanBtn.disabled = false;
+            scanBtn.textContent = originalText;
+        }
     });
 
     // Function to load devices from API
@@ -51,12 +60,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const result = await response.json();
-            console.log('Scan started:', result);
+            console.log('Scan completed:', result);
             
-            // Refresh the device list after a short delay
-            setTimeout(loadDevices, 1000);
+            // Refresh the device list
+            loadDevices();
         } catch (error) {
-            console.error('Error starting scan:', error);
+            console.error('Error scanning:', error);
+            alert('Scan failed: ' + error.message);
         }
     }
 
@@ -148,20 +158,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="detail-value">${device.port}</div>
             </div>
             <div class="detail-row">
-                <div class="detail-label">Protocol:</div>
-                <div class="detail-value">${escapeHtml(device.protocol || 'N/A')}</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Service:</div>
-                <div class="detail-value">${escapeHtml(device.service)}</div>
-            </div>
-            <div class="detail-row">
                 <div class="detail-label">Addresses:</div>
                 <div class="detail-value">${addressesHtml}</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">TTL:</div>
-                <div class="detail-value">${device.ttl}</div>
             </div>
             <div class="detail-row">
                 <div class="detail-label">Last Seen:</div>

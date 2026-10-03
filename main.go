@@ -1,41 +1,64 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
+	"flag"
+	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 
-	"github.com/Buhrietoe/findmdns/api"
-	"github.com/Buhrietoe/findmdns/discovery"
+	"github.com/Buhrietoe/findmdns/internal/api"
+	"github.com/Buhrietoe/findmdns/internal/discovery"
 )
 
+//go:embed ui/index.html static/*
+var assets embed.FS
+
 func main() {
-	// Check if 'serve' subcommand is used
+	if len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
+		printUsage()
+		return
+	}
+
 	if len(os.Args) > 1 && os.Args[1] == "serve" {
-		// Run HTTP server mode
-		runHTTPServer()
+		serveFlags := flag.NewFlagSet("serve", flag.ExitOnError)
+		portFlag := serveFlags.String("port", "", "HTTP server port (overrides PORT env var)")
+		serveFlags.Parse(os.Args[2:])
+		runHTTPServer(*portFlag)
 	} else {
-		// Run JSON output mode (default behavior)
 		runJSONOutput()
 	}
 }
 
+func printUsage() {
+	fmt.Fprintf(os.Stderr, `findmdns - mDNS service discovery tool
+
+Usage:
+  findmdns [flags]              Scan and output devices as JSON to stdout
+  findmdns serve [--port PORT]  Start HTTP server with web UI
+
+Global Flags:
+  -h, --help    Show usage information
+
+Serve Flags:
+  -port string  HTTP server port (overrides PORT env var, default 8080)
+`)
+}
+
 func runJSONOutput() {
-	// Create discovery manager
 	manager := discovery.NewManager()
 
-	// Perform scan
 	log.Println("Performing scan...")
 	err := manager.Scan()
 	if err != nil {
 		log.Fatalf("Scan failed: %v", err)
 	}
 
-	// Get devices and output as JSON
 	devices := manager.GetDevices()
-	
+
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	err = encoder.Encode(devices)
@@ -44,45 +67,41 @@ func runJSONOutput() {
 	}
 }
 
-func runHTTPServer() {
-	// Create discovery manager
+func runHTTPServer(portFlag string) {
 	manager := discovery.NewManager()
 
-	// Perform initial scan
 	log.Println("Performing initial scan...")
 	err := manager.Scan()
 	if err != nil {
 		log.Printf("Initial scan failed: %v", err)
 	}
 
-	// Create API handler
 	handler := api.NewHandler(manager)
-
-	// Set up routes
 	router := api.SetupRoutes(handler)
 
-	// Add static file serving
-	staticPath := filepath.Join(os.Getenv("PWD"), "static")
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticPath))))
+	staticFS, err := fs.Sub(assets, "static")
+	if err != nil {
+		log.Fatalf("Failed to create static filesystem: %v", err)
+	}
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
-	// For all other routes, serve the UI files (this enables SPA routing)
-	uiPath := filepath.Join(os.Getenv("PWD"), "ui")
-	
-	// Create a custom handler for non-API routes
+	uiIndex, err := assets.ReadFile("ui/index.html")
+	if err != nil {
+		log.Fatalf("Failed to read index.html: %v", err)
+	}
 	router.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// If it's an API route, it should already be handled by the router
-		if r.URL.Path != "/" && (r.URL.Path[:5] == "/api/" || r.URL.Path[:7] == "/static/") {
+		if len(r.URL.Path) > 5 && (r.URL.Path[:5] == "/api/" || r.URL.Path[:8] == "/static/") {
 			http.NotFound(w, r)
 			return
 		}
-		
-		// For all other paths, serve index.html to enable SPA routing
-		// This allows JavaScript to handle the routing properly
-		http.ServeFile(w, r, filepath.Join(uiPath, "index.html"))
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(uiIndex)
 	})
 
-	// Start server
-	port := os.Getenv("PORT")
+	port := portFlag
+	if port == "" {
+		port = os.Getenv("PORT")
+	}
 	if port == "" {
 		port = "8080"
 	}
